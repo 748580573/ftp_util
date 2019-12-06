@@ -1,5 +1,6 @@
 package com.heng.ftp.client;
 
+import com.heng.ftp.bean.SFTPFile;
 import com.heng.ftp.util.PropertyUtil;
 import com.jcraft.jsch.*;
 import org.apache.commons.io.IOUtils;
@@ -7,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Vector;
 
@@ -186,8 +189,23 @@ public class SFTPClient {
      * @return
      * @throws SftpException
      */
-    public Vector<?> ls(String directory) throws SftpException {
-        return sftp.ls(directory);
+    public List<SFTPFile> ls(String directory) throws SftpException {
+        Vector<?> files = sftp.ls(directory);
+        List<SFTPFile> list = new ArrayList<>();
+        SFTPFile file = new SFTPFile();
+        files.stream().forEach(line -> {
+            String[] s = ((Object) line).toString().split("\\s+");
+            file.setDate(s[7]+" " + s[5] + " " + s[6]);
+            file.setDirectory(s[0].startsWith("d"));
+            file.setFileName(s[8]);
+            file.setFileSize(s[4]);
+            file.setUser(s[2]);
+            file.setGroup(s[3]);
+            file.setPermission(s[0].substring(1));
+            file.setInfo(((Object) line).toString());
+            list.add(file);
+        });
+        return list.size() < 0 ? null : list;
     }
 
     /**
