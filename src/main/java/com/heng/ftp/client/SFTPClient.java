@@ -81,6 +81,7 @@ public class SFTPClient {
         if (sftp != null){
             if (sftp.isConnected()){
                 sftp.disconnect();
+                sftp.exit();
             }
         }
     }
@@ -218,5 +219,4 @@ public class SFTPClient {
         cd(directory);
         sftp.rm(deleteFile);
     }
-
 }
