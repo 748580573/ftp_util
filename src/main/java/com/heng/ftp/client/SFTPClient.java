@@ -39,11 +39,27 @@ public class SFTPClient {
     private String host;
 
     /**
+     * 文件分割符
+     */
+    private String separator = "/";
+
+    /**
      * SFTP端口
      */
     private int port;
 
+    private volatile String currentRemoteDir;
+
+    private volatile String currentLocalDir;
+
+    private String version;
+
     private PropertyUtil propertyUtil = PropertyUtil.getPropertyUtil("config.properties");
+
+    /**
+     * 下载文件的地址
+     */
+    private String downLoacation;
 
     public SFTPClient(){
         this.username = propertyUtil.getProperty("username");
@@ -51,6 +67,7 @@ public class SFTPClient {
         this.host = propertyUtil.getProperty("host");
         String test = propertyUtil.getProperty("port");
         this.port = Integer.valueOf(test.trim());
+        this.downLoacation = propertyUtil.getProperty("downLoacation");
     }
 
     public void login(){
@@ -71,7 +88,15 @@ public class SFTPClient {
             Channel channel = session.openChannel("sftp");
             channel.connect();
             sftp = (ChannelSftp) channel;
+            this.currentRemoteDir = sftp.pwd();
+            this.currentLocalDir = sftp.lpwd();
+            this.version = sftp.version();
+            if (null == downLoacation || downLoacation.length() == 0){
+                downLoacation = sftp.lpwd();
+            }
         } catch (JSchException e) {
+            e.printStackTrace();
+        } catch (SftpException e) {
             e.printStackTrace();
         }
     }
@@ -107,31 +132,35 @@ public class SFTPClient {
     }
 
     /**
-     *
      * 下载文件
-     * @param directory
-     * @param downloadFile
-     * @param saveFile
+     * @param remoteFilePath
      */
-    public void downLoad(String directory,String downloadFile,String saveFile){
-        logger.info("download--directory:{},file{}",directory,downloadFile);
+
+    // TODO 完善下载文件夹逻辑
+    public void downLoad(String remoteFilePath){
+        logger.info("download--directory:{},file{}",remoteFilePath);
         File file = null;
-
+        remoteFilePath = remoteFilePath.replace("\\", separator);
         try {
-            if (directory != null && !"".equals(directory)){
-                sftp.cd(directory);
-            }
-            file = new File(saveFile);
-            sftp.get(downloadFile,new FileOutputStream(file));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            if (isDirectory(remoteFilePath)){
+                cd(remoteFilePath);
+                List<SFTPFile> list = ls(remoteFilePath);
+            }else {
 
+            }
         } catch (SftpException e) {
             e.printStackTrace();
-            if (file != null){
-                file.delete();
-            }
         }
+
+        /*try {
+            if (isDirectory(remoteFilePath)){
+
+            }else {
+
+            }
+        } catch (SftpException e) {
+            e.printStackTrace();
+        }*/
     }
 
     /**
@@ -152,15 +181,33 @@ public class SFTPClient {
         return fileData;
     }
 
+    /**
+     * 文件路径
+     * @param filePath
+     */
+    private boolean isDirectory(String filePath) {
+        try {
+            List<SFTPFile> files = ls(filePath);
+            if (files != null && files.size() == 1 && !files.get(0).isDirectory()){
+                return false;
+            }
+        } catch (SftpException e) {
+            e.printStackTrace();
+        }
+
+        return true;
+    }
+
 
     /**
      * 切换目录
      * @param directory
      * @throws SftpException
      */
-    private void cd(String directory) throws SftpException {
+    public void cd(String directory) throws SftpException {
         if (directory != null && !"".equals(directory)){
             sftp.cd(directory);
+            this.currentRemoteDir = directory;
         }
     }
 
@@ -170,7 +217,7 @@ public class SFTPClient {
      * @return
      * @throws SftpException
      */
-    private InputStream get(String downLoadFile) throws SftpException {
+    public InputStream get(String downLoadFile) throws SftpException {
         return sftp.get(downLoadFile);
     }
 
@@ -180,7 +227,7 @@ public class SFTPClient {
      * @param inputStream
      * @throws SftpException
      */
-    private void put(String sftpFileName, InputStream inputStream) throws SftpException {
+    public void put(String sftpFileName, InputStream inputStream) throws SftpException {
         sftp.put(inputStream,sftpFileName);
     }
 
@@ -193,9 +240,9 @@ public class SFTPClient {
     public List<SFTPFile> ls(String directory) throws SftpException {
         Vector<?> files = sftp.ls(directory);
         List<SFTPFile> list = new ArrayList<>();
-        SFTPFile file = new SFTPFile();
         files.stream().forEach(line -> {
             String[] s = ((Object) line).toString().split("\\s+");
+            SFTPFile file = new SFTPFile();
             file.setDate(s[7]+" " + s[5] + " " + s[6]);
             file.setDirectory(s[0].startsWith("d"));
             file.setFileName(s[8]);
@@ -204,6 +251,7 @@ public class SFTPClient {
             file.setGroup(s[3]);
             file.setPermission(s[0].substring(1));
             file.setInfo(((Object) line).toString());
+            file.setFilePath(directory + separator + s[8]);
             list.add(file);
         });
         return list.size() < 0 ? null : list;
@@ -218,5 +266,9 @@ public class SFTPClient {
     public void delete(String directory, String deleteFile) throws SftpException {
         cd(directory);
         sftp.rm(deleteFile);
+    }
+
+    public void test(String directory) throws SftpException {
+        this.ls(directory).stream().forEach(e -> System.out.println(e));
     }
 }

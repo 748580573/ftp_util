@@ -20,6 +20,8 @@ public class SFTPFile {
 
     private String info;
 
+    private String filePath;
+
     public boolean isDirectory() {
         return isDirectory;
     }
@@ -89,8 +91,16 @@ public class SFTPFile {
         file.isDirectory();
     }
 
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
     @Override
     public String toString() {
-        return info;
+        return this.info + "   " + this.filePath;
     }
 }
