@@ -12,10 +12,7 @@ import java.util.Vector;
     public static void main(String[] args) throws SftpException {
         SFTPClient client = new SFTPClient();
         client.login();
-        List<SFTPFile> list = client.ls("/home/miner/install");
-        list.stream().forEach(line -> System.out.println(line));
-//        client.downLoad("/home/miner/install", "test.txt", "e:/test.txt");
+        client.downLoad("/home/blog/");
         client.logout();
-
     }
 }
